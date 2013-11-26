@@ -268,12 +268,13 @@ object ReplicaManager {
     }
     numberOfReplicas = args(0).toInt
     if (args(1).equals("local")) {
-      printf("Running Locally, enter replica ID :")
-      id = readInt
+      //printf("Running Locally, enter replica ID :")
+      //id = readInt
+      for (i <- 1 to numberOfReplicas){ var multipleApps = new ReplicaManagerApplication(i,numberOfReplicas) }
     }else{
-      //reverse lookup ip to get replicaID.
+      //reverse lookup id from current config ip
+      val app = new ReplicaManagerApplication(id,numberOfReplicas)
     }
-	val app = new ReplicaManagerApplication(id,numberOfReplicas)
 	println("Application Started")
   }
   
