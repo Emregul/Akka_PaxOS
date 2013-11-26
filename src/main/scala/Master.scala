@@ -11,32 +11,50 @@ import java.net.InetSocketAddress
 class Master extends Bootable{
 
   val system = ActorSystem("MasterApplication", ConfigFactory.load.getConfig("master"))
-  val actor = system.actorOf(Props(classOf[MasterActor]), "master")  
+  val actor = system.actorOf(Props(classOf[MasterActor],Master.numberOfReplicas), "master")  
+  
+  def sendFromConsoleToActor(message : Message) = actor ! message
   
   def startup() {
+    val myActor = system.actorOf(Props[CommandLineInputActor], name = "commandLineInterfaceActor")
+    while(true){
+	  myActor ! readLine(">> ")
+    }
   }
 
   def shutdown() {
     system.shutdown()
   }	
 }
-class MasterActor extends Actor {
+class MasterActor(val numberOfReplicas : Int) extends Actor {
 	var numOfReplicasStarted = 0
-	var supervisorRefs = new Array[ActorRef](2)
+	var numOfReplicasReady = 0
+	var replicaRefs = new Array[ActorRef](2)
 	import context._	
 	def receive = {
-	case NotifyMaster(n) => 
-	  	  val port = 2553+n;
+	case NotifyMaster(n) => {
 	  	  val address = Master.serverMap(n)
-		  val remotePath = "akka.tcp://ReplicaManager@"+address.getHostName() + ":"+address.getPort()+"/user/supervisor"
+		  val remotePath = "akka.tcp://ReplicaManager@"+address.getHostName() + ":"+address.getPort()+"/user/replica"
 		  println("Someone connected")
-		  val test = context.actorFor(remotePath)
-          supervisorRefs(numOfReplicasStarted) = context.actorFor(remotePath)
+          replicaRefs(numOfReplicasStarted) = context.actorFor(remotePath)
           numOfReplicasStarted += 1
-          if (numOfReplicasStarted == 2)
-             supervisorRefs.foreach(supervisor => supervisor ! NotifySupervisor())
+          if (numOfReplicasStarted == numberOfReplicas)
+             replicaRefs.foreach(supervisor => supervisor ! NotifySupervisor())
+	}
+	case ReplicaReady(n) => {
+	  numOfReplicasReady += 1
+	  if (numOfReplicasReady == numberOfReplicas)
+	    println("All replicas up!")
+	}
+    case m:Post => replicaRefs(m.n-1) ! m
+    case m:Fail =>  replicaRefs(m.n-1) ! m
+    case m:UnFail => replicaRefs(m.n-1) ! m
+    case m:Read => replicaRefs(m.n-1) ! m
+    case m:ReadPostResponse => println(m.posts)
+    case m:PaxosSuccess => println(m)
 	case _ => println("nothing lovely")
 	}
+  //def paxosReady(){replicaRefs.foreach{replica => replica ! (new PaxosReady(replicaList)) }}
 	
 }
 
@@ -47,33 +65,38 @@ class CommandLineInputActor extends Actor {
 
   def receive = {
    case oneValueRegexp(call,arg1) => call match{
-   case "read" => println("read Received: " + arg1)
-   case "fail" => println("fail Received: " + arg1)
-   case "unfail" => println("unfail Received: " + arg1)
+   case "read" => Master.app.sendFromConsoleToActor(Read(arg1.toInt))
+   case "fail" => Master.app.sendFromConsoleToActor(Fail(arg1.toInt))
+   case "unfail" => Master.app.sendFromConsoleToActor(UnFail(arg1.toInt))
    case _ => print("Unknown Command\n")
    }
    case twoValueStringRegexp(call,arg1,arg2) => call match{
-   case "post" => println("post Received: " + arg1 + "\t" + arg2)
+   case "post" => Master.app.sendFromConsoleToActor(Post(arg1.toInt,arg2))
    case _ => print("Unknown Command\n")
   }
-  //case "PaxosReady" => ReplicaManager.paxosReady
-  case "Stop" => exit(0)
-  case _ => print("Unknown Command\n")
+   case "Stop" => exit(0)
+   case "download" =>
+   case "run" =>
+   case "Stop" => exit(0)
+   case _ => print("Unknown Command\n")
   }
 }
 
 object Master {
   var serverMap = Map[Int,InetSocketAddress]()
+  var numberOfReplicas = 0;
+  lazy val app = new Master
+  
   def main(args: Array[String]) {
     for (i <- 1 to 5)
     {
       serverMap += (i -> getAddressFromConfig("server"+i))
     }
-    
-    
+    numberOfReplicas = args(0).toInt;
     println(serverMap)
-	val app = new Master
+	app.startup()
 	println("Master Started")
+	
   }
   
   def getAddressFromConfig( configName : String) : InetSocketAddress = {
