@@ -60,7 +60,7 @@ class ReplicaManagerApplication(val n: Int, val numberOfReplicas : Int) extends 
 }
 
 
-class Replica(masterPath:String,ID:Int = -1, numberOfReplicas:Int = -1) extends Actor{
+class Replica(val masterPath:String,ID:Int = -1, val numberOfReplicas:Int = -1) extends Actor{
   import context._
   context.setReceiveTimeout(3.seconds)
   sendIdentifyRequest()
@@ -105,7 +105,7 @@ class Replica(masterPath:String,ID:Int = -1, numberOfReplicas:Int = -1) extends 
    def active(actor: ActorRef): Actor.Receive = {
      case NotifySupervisor() => {
        println("Everybody up gogo!")
-       for (i<- 1 to 2) {
+       for (i<- 1 to numberOfReplicas) {
          if (i != ID)
          {
            val address = ReplicaManager.serverMap(i)
@@ -115,6 +115,7 @@ class Replica(masterPath:String,ID:Int = -1, numberOfReplicas:Int = -1) extends 
            replicaRefs += (i-> self)
          }
        }
+       println(replicaRefs)
        actor ! ReplicaReady(ID)
      }
     case Post(n,blogPost) => if(isReplicaActive) {startPaxos(nextLogPosition, blogPost);}
@@ -128,7 +129,7 @@ class Replica(masterPath:String,ID:Int = -1, numberOfReplicas:Int = -1) extends 
     case AcceptMessage(ballotNumber:Int, proposedValue:String, logPosition:Int) => if(isReplicaActive) {acceptMessageReceived(new AcceptMessage(ballotNumber, proposedValue, logPosition), sender); }//println("received accept");}
     case AcceptAcknowledgementMessage(ballotNumber:Int, proposedValue:String, logPosition:Int, isSuccess:Boolean) => if(isReplicaActive) acceptAcknowledgementMessageReceived(new AcceptAcknowledgementMessage(ballotNumber, proposedValue, logPosition, isSuccess))
     case WriteRequest(acceptMessage:AcceptMessage) => if(isReplicaActive){recieveWriteRequest(acceptMessage); actor ! PaxosSuccess(ID, acceptMessage.proposedValue)}
-    case PaxosTimeout(logPosition, blogPost) => if(isReplicaActive) {startPaxos(logPosition, blogPost);}
+    case PaxosTimeout(logPosition, blogPost) => if(isReplicaActive) {println("Timeout Occurred");startPaxos(logPosition, blogPost);}
     // Catchup Messages
     case catchupLogPosition(logPosition:Int) => if(isReplicaActive){
       if(logPosition < nextLogPosition) {
@@ -261,12 +262,12 @@ object ReplicaManager {
   var numberOfReplicas = 0;
   var id = 0;
   def main(args: Array[String]) {
-    for (i <- 1 to 5)
+    numberOfReplicas = args(0).toInt
+    for (i <- 1 to numberOfReplicas)
     {
       val config = ConfigFactory.load.getConfig("server"+i)
       serverMap += (i -> getAddressFromConfig("server" + i))
     }
-    numberOfReplicas = args(0).toInt
     if (args(1).equals("local")) {
       //printf("Running Locally, enter replica ID :")
       //id = readInt

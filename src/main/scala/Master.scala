@@ -29,7 +29,7 @@ class Master extends Bootable{
 class MasterActor(val numberOfReplicas : Int) extends Actor {
 	var numOfReplicasStarted = 0
 	var numOfReplicasReady = 0
-	var replicaRefs = new Array[ActorRef](2)
+	var replicaRefs = new Array[ActorRef](numberOfReplicas)
 	import context._	
 	def receive = {
 	case NotifyMaster(n) => {
@@ -88,11 +88,11 @@ object Master {
   lazy val app = new Master
   
   def main(args: Array[String]) {
-    for (i <- 1 to 5)
+    numberOfReplicas = args(0).toInt;
+    for (i <- 1 to numberOfReplicas)
     {
       serverMap += (i -> getAddressFromConfig("server"+i))
     }
-    numberOfReplicas = args(0).toInt;
     println(serverMap)
 	app.startup()
 	println("Master Started")
