@@ -283,7 +283,7 @@ object ReplicaManager {
     }else{
       //reverse lookup id from current config ip
       val webRequest = new URL("http://checkip.amazonaws.com")
-      replicaIp = scala.io.Source.fromInputStream(webRequest.openStream()).getLines().mkString("\n").replace(".", "-")
+      replicaIp = scala.io.Source.fromInputStream(webRequest.openStream()).getLines().mkString("\n")
       println(replicaIp)
       serverMap.foreach{case (n,address) => if (address.getHostName().contains(replicaIp)) id = n; println(address.getHostName())}
       println(id)
