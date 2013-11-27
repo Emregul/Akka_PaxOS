@@ -45,7 +45,7 @@ class LogWriteRequest(var ballotNumber:Int, var proposedValue:String, var logPos
 
 class ReplicaManagerApplication(val n: Int, val numberOfReplicas : Int) extends Bootable {
   //#setup
-  val system = ActorSystem("ReplicaManager", ConfigFactory.load.getConfig("server" + n))
+  val system = ActorSystem("ReplicaManager", ConfigFactory.load.getConfig("server" + ReplicaManager.applicationDeploymentSettings + n))
   val remotePath = "akka.tcp://MasterApplication@"+ ReplicaManager.masterAddress.getHostName() + ":"+ ReplicaManager.masterAddress.getPort() + "/user/master"
   val actor = system.actorOf(Props(classOf[Replica], remotePath,n, numberOfReplicas), "replica")
     

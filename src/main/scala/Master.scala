@@ -96,7 +96,6 @@ class CommandLineInputActor extends Actor {
          }
      }
    }
-   case "Stop" => exit(0)
    case _ => print("Unknown Command\n")
   }
 }
