@@ -81,7 +81,7 @@ class CommandLineInputActor extends Actor {
        Master.serverMap.get(i) match {
          case Some(address)=> {
            val string = "ssh -i sshkey/sec.pem ec2-user@" + address.getHostName() + " ./update.sh"
-           string.run()
+           string.run
            }
          }
      }
@@ -91,7 +91,7 @@ class CommandLineInputActor extends Actor {
        Master.serverMap.get(i) match {
          case Some(address)=> {
            val string = "ssh -i sshkey/sec.pem ec2-user@" + address.getHostName() + " ./run.sh"
-           string.run()
+           string.run
            }
          }
      }
