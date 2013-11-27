@@ -266,6 +266,7 @@ object ReplicaManager {
   var serverMap = Map[Int,InetSocketAddress]()
   var numberOfReplicas = 0;
   var id = 0;
+  var replicaIp = ""
   def main(args: Array[String]) {
     applicationDeploymentSettings = args(1)
     numberOfReplicas = args(0).toInt
@@ -274,6 +275,7 @@ object ReplicaManager {
       val config = ConfigFactory.load.getConfig("server"+ applicationDeploymentSettings + i)
       serverMap += (i -> getAddressFromConfig("server" + applicationDeploymentSettings + i))
     }
+    println(serverMap)
     if (applicationDeploymentSettings.equals("local")) {
       //printf("Running Locally, enter replica ID :")
       //id = readInt
@@ -281,10 +283,12 @@ object ReplicaManager {
     }else{
       //reverse lookup id from current config ip
       val webRequest = new URL("http://checkip.amazonaws.com")
-      val ip = scala.io.Source.fromInputStream(webRequest.openStream()).getLines().mkString("\n")
-      println(ip)
+      replicaIp = scala.io.Source.fromInputStream(webRequest.openStream()).getLines().mkString("\n").replace(".", "-")
+      println(replicaIp)
+      serverMap.foreach{case (n,address) => if (address.getHostName().contains(replicaIp)) id = n;}
       val app = new ReplicaManagerApplication(id,numberOfReplicas)
     }
+    
     
 	println("Application Started")
   }

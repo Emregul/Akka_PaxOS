@@ -108,7 +108,7 @@ object Master {
   
   def main(args: Array[String]) {
     applicationDeploymentSettings = args(1)
-    numberOfReplicas = args(0).toInt;
+    numberOfReplicas = args(0).toInt
     for (i <- 1 to numberOfReplicas)
     {
       serverMap += (i -> getAddressFromConfig("server" + applicationDeploymentSettings +i))
