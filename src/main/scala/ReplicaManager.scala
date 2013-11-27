@@ -285,7 +285,8 @@ object ReplicaManager {
       val webRequest = new URL("http://checkip.amazonaws.com")
       replicaIp = scala.io.Source.fromInputStream(webRequest.openStream()).getLines().mkString("\n").replace(".", "-")
       println(replicaIp)
-      serverMap.foreach{case (n,address) => if (address.getHostName().contains(replicaIp)) id = n;}
+      serverMap.foreach{case (n,address) => if (address.getHostName().contains(replicaIp)) id = n; println(address.getHostName())}
+      println(id)
       val app = new ReplicaManagerApplication(id,numberOfReplicas)
     }
     
