@@ -11,6 +11,10 @@ import scala.sys.process._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 import java.util.concurrent.TimeUnit
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
 
 sealed abstract class Message
 abstract class PaxosMessage extends Message
@@ -265,20 +269,23 @@ object ReplicaManager {
   def main(args: Array[String]) {
     applicationDeploymentSettings = args(1)
     numberOfReplicas = args(0).toInt
-    var configString = 
+    for (i <- 1 to numberOfReplicas)
+    {
+      val config = ConfigFactory.load.getConfig("server"+ applicationDeploymentSettings + i)
+      serverMap += (i -> getAddressFromConfig("server" + applicationDeploymentSettings + i))
+    }
     if (applicationDeploymentSettings.equals("local")) {
       //printf("Running Locally, enter replica ID :")
       //id = readInt
       for (i <- 1 to numberOfReplicas){ var multipleApps = new ReplicaManagerApplication(i,numberOfReplicas) }
     }else{
       //reverse lookup id from current config ip
+      val webRequest = new URL("http://checkip.amazonaws.com")
+      val ip = scala.io.Source.fromInputStream(webRequest.openStream()).getLines().mkString("\n")
+      println(ip)
       val app = new ReplicaManagerApplication(id,numberOfReplicas)
     }
-    for (i <- 1 to numberOfReplicas)
-    {
-      val config = ConfigFactory.load.getConfig("server"+ applicationDeploymentSettings + i)
-      serverMap += (i -> getAddressFromConfig("server" + applicationDeploymentSettings + i))
-    }
+    
 	println("Application Started")
   }
   
