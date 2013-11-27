@@ -83,7 +83,9 @@ class CommandLineInputActor extends Actor {
            val string = "ssh -i sshkey/sec.pem ec2-user@" + address.getHostName() + " ./update.sh"
            string.run
            }
+          case None =>
          }
+      
      }
    }
    case "run" => {
@@ -93,6 +95,7 @@ class CommandLineInputActor extends Actor {
            val string = "ssh -i sshkey/sec.pem ec2-user@" + address.getHostName() + " ./run.sh"
            string.run
            }
+          case None =>
          }
      }
    }
