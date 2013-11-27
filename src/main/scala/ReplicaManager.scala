@@ -257,24 +257,27 @@ class Replica(val masterPath:String,ID:Int = -1, val numberOfReplicas:Int = -1) 
 }
 
 object ReplicaManager {
-  val masterAddress = getAddressFromConfig("master")
+  var applicationDeploymentSettings = ""
+  lazy val masterAddress = getAddressFromConfig("master"+applicationDeploymentSettings)
   var serverMap = Map[Int,InetSocketAddress]()
   var numberOfReplicas = 0;
   var id = 0;
   def main(args: Array[String]) {
+    applicationDeploymentSettings = args(1)
     numberOfReplicas = args(0).toInt
-    for (i <- 1 to numberOfReplicas)
-    {
-      val config = ConfigFactory.load.getConfig("server"+i)
-      serverMap += (i -> getAddressFromConfig("server" + i))
-    }
-    if (args(1).equals("local")) {
+    var configString = 
+    if (applicationDeploymentSettings.equals("local")) {
       //printf("Running Locally, enter replica ID :")
       //id = readInt
       for (i <- 1 to numberOfReplicas){ var multipleApps = new ReplicaManagerApplication(i,numberOfReplicas) }
     }else{
       //reverse lookup id from current config ip
       val app = new ReplicaManagerApplication(id,numberOfReplicas)
+    }
+    for (i <- 1 to numberOfReplicas)
+    {
+      val config = ConfigFactory.load.getConfig("server"+ applicationDeploymentSettings + i)
+      serverMap += (i -> getAddressFromConfig("server" + applicationDeploymentSettings + i))
     }
 	println("Application Started")
   }

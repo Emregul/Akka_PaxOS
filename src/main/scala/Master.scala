@@ -7,10 +7,11 @@ import akka.actor.ActorIdentity
 import akka.kernel.Bootable
 import akka.actor.ReceiveTimeout
 import java.net.InetSocketAddress
+import scala.sys.process._
 
 class Master extends Bootable{
 
-  val system = ActorSystem("MasterApplication", ConfigFactory.load.getConfig("master"))
+  val system = ActorSystem("MasterApplication", ConfigFactory.load.getConfig("master" + Master.applicationDeploymentSettings))
   val actor = system.actorOf(Props(classOf[MasterActor],Master.numberOfReplicas), "master")  
   
   def sendFromConsoleToActor(message : Message) = actor ! message
@@ -75,23 +76,43 @@ class CommandLineInputActor extends Actor {
    case _ => print("Unknown Command\n")
   }
    case "Stop" => exit(0)
-   case "download" =>
-   case "run" =>
+   case "download" => {
+     for (i <- 1 to Master.numberOfReplicas){
+       Master.serverMap.get(i) match {
+         case Some(address)=> {
+           val string = "ssh -i sshkey/sec.pem ec2-user@" + address.getHostName() + " ./update.sh"
+           string.run()
+           }
+         }
+     }
+   }
+   case "run" => {
+     for (i <- 1 to Master.numberOfReplicas){
+       Master.serverMap.get(i) match {
+         case Some(address)=> {
+           val string = "ssh -i sshkey/sec.pem ec2-user@" + address.getHostName() + " ./run.sh"
+           string.run()
+           }
+         }
+     }
+   }
    case "Stop" => exit(0)
    case _ => print("Unknown Command\n")
   }
 }
 
 object Master {
+  var applicationDeploymentSettings = ""
   var serverMap = Map[Int,InetSocketAddress]()
   var numberOfReplicas = 0;
   lazy val app = new Master
   
   def main(args: Array[String]) {
+    applicationDeploymentSettings = args(1)
     numberOfReplicas = args(0).toInt;
     for (i <- 1 to numberOfReplicas)
     {
-      serverMap += (i -> getAddressFromConfig("server"+i))
+      serverMap += (i -> getAddressFromConfig("server" + applicationDeploymentSettings +i))
     }
     println(serverMap)
 	app.startup()
