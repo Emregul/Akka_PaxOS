@@ -11,7 +11,7 @@ import scala.sys.process._
 
 class Master extends Bootable{
 
-  val system = ActorSystem("MasterApplication", ConfigFactory.load.getConfig("master" + Master.applicationDeploymentSettings))
+  val system = ActorSystem("MasterApplication", ConfigFactory.load.getConfig("masterlocal"))
   val actor = system.actorOf(Props(classOf[MasterActor],Master.numberOfReplicas), "master")  
   
   def sendFromConsoleToActor(message : Message) = actor ! message
