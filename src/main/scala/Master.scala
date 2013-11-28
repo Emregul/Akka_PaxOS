@@ -99,6 +99,17 @@ class CommandLineInputActor extends Actor {
          }
      }
    }
+    case "killall" => {
+     for (i <- 1 to Master.numberOfReplicas){
+       Master.serverMap.get(i) match {
+         case Some(address)=> {
+           val string = "ssh -i sshkey/sec.pem ec2-user@" + address.getHostName() + " killall java"
+           string.run
+           }
+          case None =>
+         }
+     }
+   }
    case _ => print("Unknown Command\n")
   }
 }
