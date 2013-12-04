@@ -63,7 +63,7 @@ class ReplicaManagerApplicationPromotion(val n: Int, val numberOfReplicas : Int)
   def startup() {
     
     while(true){
-	  consoleActor ! readLine(">> ")
+          consoleActor ! readLine(">> ")
     }
   }
   
@@ -141,11 +141,9 @@ class ReplicaPromotion(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole
         startPaxos(getNextLogPosition, bPost);
         isProposedActive = true
       }
-    }else{
-      println("FAIL=> Writing post " + blogPost + " is failed!!!");
     }
-    case Fail() => isReplicaActive = false; println("Failed")
-    case UnFail() => {if(!isReplicaActive) {println("Unfailed");isReplicaActive = true; catchupMissing}}
+    case Fail() => isReplicaActive = false
+    case UnFail() => {if(!isReplicaActive) {isReplicaActive = true; catchupMissing}}
     case Read() => { if(isReplicaActive){ toConsole ! new ReadPostResponse(readBlogList, ID)}}
       
     // Paxos Messages
@@ -176,82 +174,79 @@ class ReplicaPromotion(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole
    // Learners receive write requests
   def recieveWriteRequest(acceptMessage:AcceptMessage){
     if(getNextLogPosition <= acceptMessage.logPosition){
-	    if(learnerMap.contains(acceptMessage.logPosition)){
-	      var writeRequests = learnerMap(acceptMessage.logPosition)
-	      writeRequests += new LogWriteRequest(acceptMessage.ballotNumber, acceptMessage.proposedValue, acceptMessage.logPosition)
-	      var counter:Int = 0
-	      for(req <- writeRequests){if(req.ballotNumber == acceptMessage.ballotNumber) counter +=1}
-	      if(counter > (numberOfReplicas/2)){
-	        timeoutTimer.cancel
-	        learnerMap = learnerMap - acceptMessage.logPosition
-	        
-	        // Check whether learner is proposer or not
-	        if((acceptMessage.ballotNumber - ID) % numberOfReplicas == 0){
-	        	// Remove post from request list then check for queue
-	          var sizeofWaitingList:Int = ownWriteRequestList.size
-	          
-	          // Make written values accepted for promotion
-	        	for(i <- 0 until sizeofWaitingList){
-	        	  for(j <- 1 to blogPosts.size){
-	        	    if(ownWriteRequestList(i).timeStamp == blogPosts(j).timeStamp){
-	        	      blogPosts(j).isAccepted = true
-	        	    }
-	        	  }
-	        	}
-	          
-	          	//println("SUCCESS=> Blogpost: " + "\""+ acceptMessage.proposedValue + "\"" + " is written!")
-	          
-	        	/*ownWriteRequestList.remove(0)
-	        	sizeofWaitingList =  ownWriteRequestList.size*/
-	        	if(sizeofWaitingList > 0){
-	        		//Write and Promote complete list rather than starting Paxos	
-	        		var count  = 0;
-	        		var promoteList = new ArrayBuffer[BPost]
-	        		while(count < sizeofWaitingList){
-	        		    var post = ownWriteRequestList(0)
-	        		    post.isAccepted = true
-	        			promoteList +=post
-	        			globalMap(acceptMessage.logPosition + count ) = (post, 1)
-	        			println("SUCCESS=> Blogpost: " + "\""+ acceptMessage.proposedValue.post + "\"" + " is written!")
-	        			ownWriteRequestList.remove(0)
-	        			count += 1
-	        		}
+            if(learnerMap.contains(acceptMessage.logPosition)){
+              var writeRequests = learnerMap(acceptMessage.logPosition)
+              writeRequests += new LogWriteRequest(acceptMessage.ballotNumber, acceptMessage.proposedValue, acceptMessage.logPosition)
+              var counter:Int = 0
+              for(req <- writeRequests){if(req.ballotNumber == acceptMessage.ballotNumber) counter +=1}
+              if(counter > (numberOfReplicas/2)){
+                timeoutTimer.cancel
+                learnerMap = learnerMap - acceptMessage.logPosition
+                
+                // Check whether learner is proposer or not
+                if((acceptMessage.ballotNumber - ID) % numberOfReplicas == 0){
+                        // Remove post from request list then check for queue
+                  var sizeofWaitingList:Int = ownWriteRequestList.size
+                  
+                  // Make written values accepted for promotion
+                        for(i <- 0 until sizeofWaitingList){
+                          for(j <- 1 to blogPosts.size){
+                            if(ownWriteRequestList(i).timeStamp == blogPosts(j).timeStamp){
+                              blogPosts(j).isAccepted = true
+                            }
+                          }
+                        }
+                  
+                        /*ownWriteRequestList.remove(0)
+                        sizeofWaitingList =  ownWriteRequestList.size*/
+                        if(sizeofWaitingList > 0){
+                                //Write and Promote complete list rather than starting Paxos        
+                                var count  = 0;
+                                var promoteList = new ArrayBuffer[BPost]
+                                while(count < sizeofWaitingList){
+                                    var post = ownWriteRequestList(0)
+                                    post.isAccepted = true
+                                        promoteList +=post
+                                        globalMap(acceptMessage.logPosition + count ) = (post, 1)
+                                        ownWriteRequestList.remove(0)
+                                        count += 1
+                                }
 
-	        		for( i <- 1 to numberOfReplicas){
-	        			if(i != ID){replicaRefs(i) ! new PaxosPromotionMessage(promoteList, acceptMessage.logPosition)}
-	        		}
+                                for( i <- 1 to numberOfReplicas){
+                                        if(i != ID){replicaRefs(i) ! new PaxosPromotionMessage(promoteList, acceptMessage.logPosition)}
+                                }
 
-	        		// If there are new post request after write acceptance start a new paxos for the next one
-	        		if(ownWriteRequestList.size > 0){
-	        			startPaxos(getNextLogPosition, ownWriteRequestList(0));
-	        			isProposedActive = true
-	        		}
-	        		else{ 
-	        			isProposedActive = false
-	        		}
+                                // If there are new post request after write acceptance start a new paxos for the next one
+                                if(ownWriteRequestList.size > 0){
+                                        startPaxos(getNextLogPosition, ownWriteRequestList(0));
+                                        isProposedActive = true
+                                }
+                                else{ 
+                                        isProposedActive = false
+                                }
 
-	        	}else{
-	        		isProposedActive = false
-	        	} 
-	        }else{ // Learner is not proposer
-	        	 //addPostToBlog(acceptMessage.proposedValue)
-	        	 //println("ID: " + ID  + "\tSizeOwners: " +  ownWriteRequestList.size)
-	        	// If there are new post request after write acceptance start a new paxos for the next one
-	        	if(ownWriteRequestList.size > 0){
-	        		startPaxos(getNextLogPosition, ownWriteRequestList(0));
-	        		isProposedActive = true
-	        	}
-	        	else{ 
-	        		isProposedActive = false
-	        	}
-	        }
-	      }
-	    }
-	    else{
-	      var writeRequests = new ArrayBuffer[LogWriteRequest]
-	      writeRequests += new LogWriteRequest(acceptMessage.ballotNumber, acceptMessage.proposedValue, acceptMessage.logPosition)
-	      learnerMap(acceptMessage.logPosition) = writeRequests
-	    }
+                        }else{
+                                isProposedActive = false
+                        } 
+                }else{ // Learner is not proposer
+                         //addPostToBlog(acceptMessage.proposedValue)
+                         //println("ID: " + ID  + "\tSizeOwners: " +  ownWriteRequestList.size)
+                        // If there are new post request after write acceptance start a new paxos for the next one
+                        if(ownWriteRequestList.size > 0){
+                                startPaxos(getNextLogPosition, ownWriteRequestList(0));
+                                isProposedActive = true
+                        }
+                        else{ 
+                                isProposedActive = false
+                        }
+                }
+              }
+            }
+            else{
+              var writeRequests = new ArrayBuffer[LogWriteRequest]
+              writeRequests += new LogWriteRequest(acceptMessage.ballotNumber, acceptMessage.proposedValue, acceptMessage.logPosition)
+              learnerMap(acceptMessage.logPosition) = writeRequests
+            }
     }
   }
   
@@ -300,20 +295,20 @@ class ReplicaPromotion(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole
   }
 
   def readBlogList():String = {
-	  var posts:String = ""
-	    
-	  // Assume there is no gap in the log  
+          var posts:String = ""
+            
+          // Assume there is no gap in the log  
       for(i <- 1 to blogPosts.size) 
-    	  posts = posts + blogPosts(i).post + ":"
-	  return posts
+              posts = posts + blogPosts(i).post + ":"
+          return posts
   }
   
   def catchupMissing(){
     if(!blogPosts.contains(nextLogPositionForCatchUp)){
       for( i <- 1 to numberOfReplicas){
-	      //println("NextLogPos: " + nextLogPosition)
-	      if(i != ID){replicaRefs(i) ! new catchupLogPosition(nextLogPositionForCatchUp)}
-	    }
+              //println("NextLogPos: " + nextLogPosition)
+              if(i != ID){replicaRefs(i) ! new catchupLogPosition(nextLogPositionForCatchUp)}
+            }
     }else{
       nextLogPositionForCatchUp +=1
       catchupMissing
@@ -330,14 +325,14 @@ class ReplicaPromotion(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole
   
   // Returns the next available ballot number for paxos
   def getNextAvailableBallotNumber():Int = {
-	  if(lastSelectedBallotNumber >= lastReceivedBallotNumber){
-	    lastSelectedBallotNumber += numberOfReplicas
-	    return lastSelectedBallotNumber
-	  }
-	  else{
-	    val divident:Int = lastReceivedBallotNumber / numberOfReplicas
-	    return (divident+1) * numberOfReplicas + (ID)
-	  }
+          if(lastSelectedBallotNumber >= lastReceivedBallotNumber){
+            lastSelectedBallotNumber += numberOfReplicas
+            return lastSelectedBallotNumber
+          }
+          else{
+            val divident:Int = lastReceivedBallotNumber / numberOfReplicas
+            return (divident+1) * numberOfReplicas + (ID)
+          }
   }
   
   def addBlogToSpecificLogPosition(logPos:Int, blog: BPost){
@@ -345,7 +340,7 @@ class ReplicaPromotion(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole
      blogPosts(logPos) = blog
      nextLogPositionForCatchUp += 1
      catchupMissing
-  	}
+          }
   }
   
   // Add Blog to Stream
@@ -355,19 +350,19 @@ class ReplicaPromotion(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole
   }  
   
   def addPromotionPostsToBlog(logPos:Int, blogs: ArrayBuffer[BPost]){
-	val isGapExist = (logPos - nextLogPositionForCatchUp) > 0  
+        val isGapExist = (logPos - nextLogPositionForCatchUp) > 0  
     blogPosts.get(logPos) match{
       case Some(bPos) => {
           val size = blogPosts.size
-		    for(i <- 1 to blogs.size){
-		      blogPosts(i + size) = blogs(i -1)
-		    }
-	        nextLogPositionForCatchUp += blogs.size
+                    for(i <- 1 to blogs.size){
+                      blogPosts(i + size) = blogs(i -1)
+                    }
+                nextLogPositionForCatchUp += blogs.size
       }
       case None => {
          for(i <- 0 until blogs.size){
-	      blogPosts(i + logPos) = blogs(i)
-	     }
+              blogPosts(i + logPos) = blogs(i)
+             }
          if(!isGapExist){nextLogPositionForCatchUp += blogs.size}
       }
     }
@@ -397,7 +392,7 @@ class ReplicaSupervisor extends Actor {
    case "Start" => ReplicaManagerPromotion.replicaApp.sendFromConsoleToActor(NotifySupervisor())
    case "download" =>
    case "run" => 
-   case ReadPostResponse(readBlogList, replicaID) => println("BlogPosts from Replica: " + readBlogList)
+   case ReadPostResponse(readBlogList, replicaID) => println(readBlogList)
    case _ => print("Unknown Command\n")
   }
   
@@ -418,7 +413,7 @@ object ReplicaManagerPromotion {
     }
     id = args(1).toInt
     replicaApp.startup()
-	println("Application Started")
+        println("Application Started")
   }
   
   def getAddressFromConfig( configName : String) : InetSocketAddress = {
@@ -428,6 +423,3 @@ object ReplicaManagerPromotion {
     new InetSocketAddress(hostname,port.toInt)
   }
 }
-
-
-

@@ -54,7 +54,7 @@ class ReplicaManagerApplication(val n: Int, val numberOfReplicas : Int) extends 
   def startup() {
     
     while(true){
-	  consoleActor ! readLine(">> ")
+          consoleActor ! readLine(">> ")
     }
   }
   
@@ -110,7 +110,7 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
            replicaRefs += (i-> self)
          }
        }
-       //println(replicaRefs)
+       println(replicaRefs)
        //sender ! ReplicaReady(ID)
      }
     case Post(blogPost) => if(isReplicaActive) {
@@ -119,20 +119,18 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
         startPaxos(nextLogPosition, blogPost);
         isProposedActive = true
       }
-    }else{
-      println("FAIL=> Writing post " + blogPost + " is failed!!!");
     }
-    case Fail() => isReplicaActive = false; println("Failed");
-    case UnFail() => {if(!isReplicaActive) {println("Unfailed"); isReplicaActive = true; catchupMissing}}
+    case Fail() => isReplicaActive = false; println("failed");
+    case UnFail() => {if(!isReplicaActive) {isReplicaActive = true; catchupMissing}}
     case Read() => { if(isReplicaActive){ toConsole ! new ReadPostResponse(readBlogList, ID)}}
       
     // Paxos Messages
     case ProposeMessage(ballotNumber:Int, proposedValue:String, logPosition:Int) => if(isReplicaActive) receivedProposePaxos(ballotNumber, proposedValue, logPosition, sender)
-    case PromiseMessage(ballotNumber:Int, proposedValue:String, oldBallotNumber:Int, oldValue:String, logPosition:Int, replicaID:Int) => if(isReplicaActive){ promiseMessageReceived(new PromiseMessage(ballotNumber,proposedValue, oldBallotNumber, oldValue, logPosition, replicaID), sender);}
-    case AcceptMessage(ballotNumber:Int, proposedValue:String, logPosition:Int) => if(isReplicaActive) {acceptMessageReceived(new AcceptMessage(ballotNumber, proposedValue, logPosition), sender);}
-    case AcceptAcknowledgementMessage(ballotNumber:Int, proposedValue:String, logPosition:Int, isSuccess:Boolean) => if(isReplicaActive) {acceptAcknowledgementMessageReceived(new AcceptAcknowledgementMessage(ballotNumber, proposedValue, logPosition, isSuccess)); }
+    case PromiseMessage(ballotNumber:Int, proposedValue:String, oldBallotNumber:Int, oldValue:String, logPosition:Int, replicaID:Int) => if(isReplicaActive){ promiseMessageReceived(new PromiseMessage(ballotNumber,proposedValue, oldBallotNumber, oldValue, logPosition, replicaID), sender);println("received promise");}
+    case AcceptMessage(ballotNumber:Int, proposedValue:String, logPosition:Int) => if(isReplicaActive) {acceptMessageReceived(new AcceptMessage(ballotNumber, proposedValue, logPosition), sender); println("received accept");}
+    case AcceptAcknowledgementMessage(ballotNumber:Int, proposedValue:String, logPosition:Int, isSuccess:Boolean) => if(isReplicaActive) {acceptAcknowledgementMessageReceived(new AcceptAcknowledgementMessage(ballotNumber, proposedValue, logPosition, isSuccess)); println("acknowledgement accept");}
     case WriteRequest(acceptMessage:AcceptMessage) => if(isReplicaActive){recieveWriteRequest(acceptMessage);}
-    case PaxosTimeout(logPosition, blogPost) => if(isReplicaActive) {startPaxos(logPosition, blogPost);}
+    case PaxosTimeout(logPosition, blogPost) => if(isReplicaActive) {println("Timed out");startPaxos(logPosition, blogPost);}
     // Catchup Messages
     case catchupLogPosition(logPosition:Int) => if(isReplicaActive){
       if(logPosition < nextLogPosition) {
@@ -145,8 +143,8 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
       if(lastReceivedBalNum > lastReceivedBallotNumber){lastReceivedBallotNumber = lastReceivedBalNum}
       if(isFilled){
         if(nextLogPosition == logPosition){
-        	addPostToBlog(filledValue)
-        	catchupMissing
+                addPostToBlog(filledValue)
+                catchupMissing
         }
       }
      } 
@@ -154,44 +152,46 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
    
    // Learners receive write requests
   def recieveWriteRequest(acceptMessage:AcceptMessage){
+    println("writereceive received")
     if(nextLogPosition <= acceptMessage.logPosition){
-	      if(learnerMap.contains(acceptMessage.logPosition)){
-	      var writeRequests = learnerMap(acceptMessage.logPosition)
-	      writeRequests += new LogWriteRequest(acceptMessage.ballotNumber, acceptMessage.proposedValue, acceptMessage.logPosition)
-	      var counter:Int = 0
-	      for(req <- writeRequests){if(req.ballotNumber == acceptMessage.ballotNumber) counter +=1}
-	      if(counter > (numberOfReplicas/2)){
-	        timeoutTimer.cancel
-	        addPostToBlog(acceptMessage.proposedValue)
-	        learnerMap = learnerMap - acceptMessage.logPosition
-	        
-	        // Check whether learner is proposer or not
-	        if((acceptMessage.ballotNumber - ID) % numberOfReplicas == 0){
-	        	// Remove post from request list then check for queue
-	        	println("SUCCESS=> Blogpost: " + "\""+ acceptMessage.proposedValue + "\"" + " is written!")
-	            //println("SizeOfList: " + ownWriteRequestList.size + "\tBallot Number: " + acceptMessage.ballotNumber + "\tID: " + ID + "\tPost: " + acceptMessage.proposedValue)
-	        	ownWriteRequestList.remove(0)
-	        	if(ownWriteRequestList.size > 0){
-	        		startPaxos(nextLogPosition, ownWriteRequestList(0));
-	        		isProposedActive = true
-	        	}else{
-	        		isProposedActive = false
-	        	} 
-	        }else{
-	            if(ownWriteRequestList.size > 0){
-	        		startPaxos(nextLogPosition, ownWriteRequestList(0));
-	        		isProposedActive = true
-	        	}else{
-	        		isProposedActive = false
-	        	}
-	        }
-	      }
-	    }
-	    else{
-	      var writeRequests = new ArrayBuffer[LogWriteRequest]
-	      writeRequests += new LogWriteRequest(acceptMessage.ballotNumber, acceptMessage.proposedValue, acceptMessage.logPosition)
-	      learnerMap(acceptMessage.logPosition) = writeRequests
-	    }
+              if(learnerMap.contains(acceptMessage.logPosition)){
+              var writeRequests = learnerMap(acceptMessage.logPosition)
+              writeRequests += new LogWriteRequest(acceptMessage.ballotNumber, acceptMessage.proposedValue, acceptMessage.logPosition)
+              var counter:Int = 0
+              for(req <- writeRequests){if(req.ballotNumber == acceptMessage.ballotNumber) counter +=1}
+              if(counter > (numberOfReplicas/2)){
+                println("cancelled timer")
+                timeoutTimer.cancel
+                addPostToBlog(acceptMessage.proposedValue)
+                learnerMap = learnerMap - acceptMessage.logPosition
+                
+                // Check whether learner is proposer or not
+                if((acceptMessage.ballotNumber - ID) % numberOfReplicas == 0){
+                        // Remove post from request list then check for queue
+                  
+                    println("SizeOfList: " + ownWriteRequestList.size + "\tBallot Number: " + acceptMessage.ballotNumber + "\tID: " + ID + "\tPost: " + acceptMessage.proposedValue)
+                        ownWriteRequestList.remove(0)
+                        if(ownWriteRequestList.size > 0){
+                                startPaxos(nextLogPosition, ownWriteRequestList(0));
+                                isProposedActive = true
+                        }else{
+                                isProposedActive = false
+                        } 
+                }else{
+                    if(ownWriteRequestList.size > 0){
+                                startPaxos(nextLogPosition, ownWriteRequestList(0));
+                                isProposedActive = true
+                        }else{
+                                isProposedActive = false
+                        }
+                }
+              }
+            }
+            else{
+              var writeRequests = new ArrayBuffer[LogWriteRequest]
+              writeRequests += new LogWriteRequest(acceptMessage.ballotNumber, acceptMessage.proposedValue, acceptMessage.logPosition)
+              learnerMap(acceptMessage.logPosition) = writeRequests
+            }
     }
   }
   
@@ -241,10 +241,10 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
   }
 
   def readBlogList():String = {
-	  var posts:String = ""
+          var posts:String = ""
       for(blogPost <- blogPosts) 
-    	  posts = posts + blogPost + ":"
-	  return posts
+              posts = posts + blogPost + ":"
+          return posts
   }
   
   def catchupMissing(){
@@ -264,14 +264,14 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
   
   // Returns the next available ballot number for paxos
   def getNextAvailableBallotNumber():Int = {
-	  if(lastSelectedBallotNumber >= lastReceivedBallotNumber){
-	    lastSelectedBallotNumber += numberOfReplicas
-	    return lastSelectedBallotNumber
-	  }
-	  else{
-	    val divident:Int = lastReceivedBallotNumber / numberOfReplicas
-	    return (divident+1) * numberOfReplicas + (ID)
-	  }
+          if(lastSelectedBallotNumber >= lastReceivedBallotNumber){
+            lastSelectedBallotNumber += numberOfReplicas
+            return lastSelectedBallotNumber
+          }
+          else{
+            val divident:Int = lastReceivedBallotNumber / numberOfReplicas
+            return (divident+1) * numberOfReplicas + (ID)
+          }
   }
   
   // Add Blog to Stream
@@ -298,7 +298,7 @@ class ReplicaSupervisor extends Actor {
    case "Start" => ReplicaManager.replicaApp.sendFromConsoleToActor(NotifySupervisor())
    case "download" =>
    case "run" => 
-   case ReadPostResponse(readBlogList, replicaID) => println("BlogPosts from Replica: " + readBlogList)
+   case ReadPostResponse(readBlogList, replicaID) => println(readBlogList)
    case _ => print("Unknown Command\n")
   }
   
@@ -319,7 +319,7 @@ object ReplicaManager {
     }
     id = args(1).toInt
     replicaApp.startup()
-	println("Application Started")
+        println("Application Started")
   }
   
   def getAddressFromConfig( configName : String) : InetSocketAddress = {
@@ -329,8 +329,3 @@ object ReplicaManager {
     new InetSocketAddress(hostname,port.toInt)
   }
 }
-
-
-
-
-
