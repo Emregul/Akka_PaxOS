@@ -141,9 +141,11 @@ class ReplicaPromotion(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole
         startPaxos(getNextLogPosition, bPost);
         isProposedActive = true
       }
+    }else{
+      println("FAIL=> Writing post " + blogPost + " is failed!!!");
     }
-    case Fail() => isReplicaActive = false
-    case UnFail() => {if(!isReplicaActive) {isReplicaActive = true; catchupMissing}}
+    case Fail() => isReplicaActive = false; println("Failed")
+    case UnFail() => {if(!isReplicaActive) {println("Unfailed");isReplicaActive = true; catchupMissing}}
     case Read() => { if(isReplicaActive){ toConsole ! new ReadPostResponse(readBlogList, ID)}}
       
     // Paxos Messages
@@ -197,6 +199,8 @@ class ReplicaPromotion(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole
 	        	  }
 	        	}
 	          
+	          	//println("SUCCESS=> Blogpost: " + "\""+ acceptMessage.proposedValue + "\"" + " is written!")
+	          
 	        	/*ownWriteRequestList.remove(0)
 	        	sizeofWaitingList =  ownWriteRequestList.size*/
 	        	if(sizeofWaitingList > 0){
@@ -208,6 +212,7 @@ class ReplicaPromotion(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole
 	        		    post.isAccepted = true
 	        			promoteList +=post
 	        			globalMap(acceptMessage.logPosition + count ) = (post, 1)
+	        			println("SUCCESS=> Blogpost: " + "\""+ acceptMessage.proposedValue.post + "\"" + " is written!")
 	        			ownWriteRequestList.remove(0)
 	        			count += 1
 	        		}
@@ -392,7 +397,7 @@ class ReplicaSupervisor extends Actor {
    case "Start" => ReplicaManagerPromotion.replicaApp.sendFromConsoleToActor(NotifySupervisor())
    case "download" =>
    case "run" => 
-   case ReadPostResponse(readBlogList, replicaID) => println(readBlogList)
+   case ReadPostResponse(readBlogList, replicaID) => println("BlogPosts from Replica: " + readBlogList)
    case _ => print("Unknown Command\n")
   }
   

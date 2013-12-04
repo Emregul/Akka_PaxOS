@@ -119,9 +119,11 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
         startPaxos(nextLogPosition, blogPost);
         isProposedActive = true
       }
+    }else{
+      println("FAIL=> Writing post " + blogPost + " is failed!!!");
     }
-    case Fail() => isReplicaActive = false; println("failed");
-    case UnFail() => {if(!isReplicaActive) {isReplicaActive = true; catchupMissing}}
+    case Fail() => isReplicaActive = false; println("Failed");
+    case UnFail() => {if(!isReplicaActive) {println("Unfailed"); isReplicaActive = true; catchupMissing}}
     case Read() => { if(isReplicaActive){ toConsole ! new ReadPostResponse(readBlogList, ID)}}
       
     // Paxos Messages
@@ -168,8 +170,8 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
 	        // Check whether learner is proposer or not
 	        if((acceptMessage.ballotNumber - ID) % numberOfReplicas == 0){
 	        	// Remove post from request list then check for queue
-	          
-	            println("SizeOfList: " + ownWriteRequestList.size + "\tBallot Number: " + acceptMessage.ballotNumber + "\tID: " + ID + "\tPost: " + acceptMessage.proposedValue)
+	        	println("SUCCESS=> Blogpost: " + "\""+ acceptMessage.proposedValue + "\"" + " is written!")
+	            //println("SizeOfList: " + ownWriteRequestList.size + "\tBallot Number: " + acceptMessage.ballotNumber + "\tID: " + ID + "\tPost: " + acceptMessage.proposedValue)
 	        	ownWriteRequestList.remove(0)
 	        	if(ownWriteRequestList.size > 0){
 	        		startPaxos(nextLogPosition, ownWriteRequestList(0));
@@ -298,7 +300,7 @@ class ReplicaSupervisor extends Actor {
    case "Start" => ReplicaManager.replicaApp.sendFromConsoleToActor(NotifySupervisor())
    case "download" =>
    case "run" => 
-   case ReadPostResponse(readBlogList, replicaID) => println(readBlogList)
+   case ReadPostResponse(readBlogList, replicaID) => println("BlogPosts from Replica: " + readBlogList)
    case _ => print("Unknown Command\n")
   }
   
