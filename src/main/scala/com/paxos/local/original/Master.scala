@@ -1,4 +1,6 @@
-/*import akka.actor.{ ActorRef, ActorSystem, Props, Actor, Inbox }
+package com.paxos.local.original
+
+import akka.actor.{ ActorRef, ActorSystem, Props, Actor, Inbox }
 import scala.concurrent.duration._
 import akka.kernel.Bootable
 import com.typesafe.config.ConfigFactory
@@ -110,4 +112,3 @@ object Master {
     new InetSocketAddress(hostname,port.toInt)
   }
 }
-*/

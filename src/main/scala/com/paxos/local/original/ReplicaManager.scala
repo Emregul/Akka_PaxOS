@@ -1,3 +1,5 @@
+package com.paxos.local.original
+
 import akka.actor.{ ActorRef, ActorSystem, Props, Actor, Inbox }
 import scala.concurrent.duration._
 import akka.kernel.Bootable
