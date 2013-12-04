@@ -120,8 +120,8 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
         isProposedActive = true
       }
     }
-    case Fail => isReplicaActive = false
-    case UnFail => {if(!isReplicaActive) {isReplicaActive = true; catchupMissing}}
+    case Fail() => isReplicaActive = false; println("failed");
+    case UnFail() => {if(!isReplicaActive) {isReplicaActive = true; catchupMissing}}
     case Read() => { if(isReplicaActive){ toConsole ! new ReadPostResponse(readBlogList, ID)}}
       
     // Paxos Messages
