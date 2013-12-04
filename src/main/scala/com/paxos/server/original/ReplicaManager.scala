@@ -110,7 +110,7 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
            replicaRefs += (i-> self)
          }
        }
-       println(replicaRefs)
+       //println(replicaRefs)
        //sender ! ReplicaReady(ID)
      }
     case Post(blogPost) => if(isReplicaActive) {
@@ -128,11 +128,11 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
       
     // Paxos Messages
     case ProposeMessage(ballotNumber:Int, proposedValue:String, logPosition:Int) => if(isReplicaActive) receivedProposePaxos(ballotNumber, proposedValue, logPosition, sender)
-    case PromiseMessage(ballotNumber:Int, proposedValue:String, oldBallotNumber:Int, oldValue:String, logPosition:Int, replicaID:Int) => if(isReplicaActive){ promiseMessageReceived(new PromiseMessage(ballotNumber,proposedValue, oldBallotNumber, oldValue, logPosition, replicaID), sender);println("received promise");}
-    case AcceptMessage(ballotNumber:Int, proposedValue:String, logPosition:Int) => if(isReplicaActive) {acceptMessageReceived(new AcceptMessage(ballotNumber, proposedValue, logPosition), sender); println("received accept");}
-    case AcceptAcknowledgementMessage(ballotNumber:Int, proposedValue:String, logPosition:Int, isSuccess:Boolean) => if(isReplicaActive) {acceptAcknowledgementMessageReceived(new AcceptAcknowledgementMessage(ballotNumber, proposedValue, logPosition, isSuccess)); println("acknowledgement accept");}
+    case PromiseMessage(ballotNumber:Int, proposedValue:String, oldBallotNumber:Int, oldValue:String, logPosition:Int, replicaID:Int) => if(isReplicaActive){ promiseMessageReceived(new PromiseMessage(ballotNumber,proposedValue, oldBallotNumber, oldValue, logPosition, replicaID), sender);}
+    case AcceptMessage(ballotNumber:Int, proposedValue:String, logPosition:Int) => if(isReplicaActive) {acceptMessageReceived(new AcceptMessage(ballotNumber, proposedValue, logPosition), sender);}
+    case AcceptAcknowledgementMessage(ballotNumber:Int, proposedValue:String, logPosition:Int, isSuccess:Boolean) => if(isReplicaActive) {acceptAcknowledgementMessageReceived(new AcceptAcknowledgementMessage(ballotNumber, proposedValue, logPosition, isSuccess)); }
     case WriteRequest(acceptMessage:AcceptMessage) => if(isReplicaActive){recieveWriteRequest(acceptMessage);}
-    case PaxosTimeout(logPosition, blogPost) => if(isReplicaActive) {println("Timed out");startPaxos(logPosition, blogPost);}
+    case PaxosTimeout(logPosition, blogPost) => if(isReplicaActive) {startPaxos(logPosition, blogPost);}
     // Catchup Messages
     case catchupLogPosition(logPosition:Int) => if(isReplicaActive){
       if(logPosition < nextLogPosition) {
@@ -154,7 +154,6 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
    
    // Learners receive write requests
   def recieveWriteRequest(acceptMessage:AcceptMessage){
-    println("writereceive received")
     if(nextLogPosition <= acceptMessage.logPosition){
 	      if(learnerMap.contains(acceptMessage.logPosition)){
 	      var writeRequests = learnerMap(acceptMessage.logPosition)
@@ -162,7 +161,6 @@ class Replica(ID:Int = -1, val numberOfReplicas:Int = -1, val toConsole: ActorRe
 	      var counter:Int = 0
 	      for(req <- writeRequests){if(req.ballotNumber == acceptMessage.ballotNumber) counter +=1}
 	      if(counter > (numberOfReplicas/2)){
-	        println("cancelled timer")
 	        timeoutTimer.cancel
 	        addPostToBlog(acceptMessage.proposedValue)
 	        learnerMap = learnerMap - acceptMessage.logPosition
